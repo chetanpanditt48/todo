@@ -367,7 +367,7 @@ export default function AirAssistEnhanced() {
           <div className="text-xs text-gray-500 text-center">{lang === "en" ? "Mock UI. Do not use trademarks." : "Interface factice. Ne pas utiliser les marques."}</div>
         </div>
 
-                {/* FAQ drawer */}
+            {/* FAQ drawer */}
         {showFAQ && (
           <div className="fixed right-6 top-20 w-96 bg-white rounded-xl shadow-lg p-4 z-40">
             <div className="flex items-center justify-between mb-2">
