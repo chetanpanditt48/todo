@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 
 /*
-AirAssist — Search-based mock chatbot UI
+AirAssist — Search-based mock chatbot UI (rebook flows)
+Changes:
+- Removed "Check status" and "Book selected" actions.
+- Added "Suggest rebook" (shows options) and "Request rebook" (user requests rebooking).
+- Chat quick buttons updated accordingly.
 Save as: src/components/AirAssistEnhanced.js
-Requires: Tailwind CSS and a UI font (Roboto / Noto Sans) loaded globally.
-
-Behavior:
-- User searches flights by From/To/Date in right panel.
-- Matching flights (mocked) are listed.
-- User selects a flight. Chat can act on selected flight (status, book, predict delay).
-- All data is mock. No external APIs.
-- Do not use Air Canada trademarks without permission.
+Requires Tailwind CSS.
 */
 
 const FLIGHTS = [
@@ -62,19 +59,17 @@ function Mark() {
 export default function AirAssistEnhanced() {
   const [lang, setLang] = useState("en");
   const [messages, setMessages] = useState([
-    { id: 1, from: "bot", text: "Welcome to AirAssist. Search flights or ask about flight status.", time: "10:00" },
+    { id: 1, from: "bot", text: "Welcome to AirAssist. Search flights or ask for rebook suggestions.", time: "10:00" },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-  // search states
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [date, setDate] = useState("");
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
 
-  // UI state
   const [handoff, setHandoff] = useState(false);
   const [showFAQ, setShowFAQ] = useState(false);
   const listRef = useRef(null);
@@ -101,22 +96,55 @@ export default function AirAssistEnhanced() {
       const lower = text.toLowerCase();
       let reply = "";
 
-      // book flow
-      if (lower.startsWith("book") || lower.startsWith("reserve")) {
+      // Suggest rebook options (shows alternatives)
+      if (lower.includes("suggest") && (lower.includes("rebook") || lower.includes("re-book"))) {
         if (!selected) {
-          reply = "No flight selected. Use the search on the right and select a flight first.";
+          reply = "Select a flight first to get rebook options or search for alternatives.";
         } else {
-          // mock booking confirmation
-          const conf = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
-          reply = `Booking confirmed for ${selected.id} (${selected.route}). Confirmation: ${conf}.`;
+          // create mock suggestions: same day later, next-day earlier, cheaper option
+          const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
+          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.price < selected.price);
+          const suggestions = [
+            `Option 1: Same-day later flight ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
+            `Option 2: Cheaper option ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
+            "Option 3: Rebook to next available flight (+CAD 40)."
+          ];
+          reply = `Rebook suggestions for ${selected.id}:\n- ${suggestions.join("\n- ")}`;
         }
       }
-      // flight status about selected flight
-      else if (lower.includes("status") || lower.includes("flight status")) {
-        if (!selected) reply = "No flight selected. Search and select a flight to see status.";
-        else reply = `Flight ${selected.id} status: Confirmed. Departure: ${new Date(selected.dep).toLocaleString()}.`;
+      // Request rebook (user requests agent to rebook or auto-request)
+      else if (lower.startsWith("request") && (lower.includes("rebook") || lower.includes("re-book"))) {
+        if (!selected) {
+          reply = "No flight selected. Select the flight you want rebooked and then request rebook.";
+        } else {
+          // mock request created
+          const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
+          reply = `Rebook request submitted for ${selected.id}. Request ref: ${reqRef}. An agent will review and contact you.`;
+        }
       }
-      // predict delay for selected flight
+      // Handle short commands: 'suggest rebook' or 'request rebook'
+      else if (lower === "suggest rebook") {
+        // delegate to suggest flow
+        if (!selected) reply = "Select a flight first.";
+        else {
+          const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
+          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && Number(f.price.replace(/\D/g,'')) < Number(selected.price.replace(/\D/g,'')));
+          const suggestions = [
+            `Option 1: Same-day later ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
+            `Option 2: Cheaper ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
+            "Option 3: Rebook to next available (+CAD 40)."
+          ];
+          reply = `Rebook suggestions:\n- ${suggestions.join("\n- ")}`;
+        }
+      }
+      else if (lower === "request rebook") {
+        if (!selected) reply = "Select a flight first.";
+        else {
+          const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
+          reply = `Rebook request created. Ref: ${reqRef}. Agent will follow up.`;
+        }
+      }
+      // Predict delay
       else if (lower.includes("predict") || lower.includes("delay") || lower.includes("risk")) {
         if (!selected) reply = "No flight selected. Select a flight to run prediction.";
         else {
@@ -124,20 +152,9 @@ export default function AirAssistEnhanced() {
           reply = `Prediction for ${selected.id}: ${r.label} risk (${Math.round(r.score * 100)}%). Reason: ${r.reason}`;
         }
       }
-      // open FAQ
-      else if (lower.includes("faq") || lower.includes("policy") || lower.includes("refund")) {
-        setShowFAQ(true);
-        reply = lang === "en" ? "Opened FAQ. Select a question." : "FAQ ouvert. Sélectionnez une question.";
-      }
-      // connect to agent
-      else if (lower.includes("agent") || lower.includes("human") || handoff) {
-        setHandoff(true);
-        reply = lang === "en" ? "Connecting to human agent. ETA 2-5 min." : "Connexion à un agent. Délai 2-5 min.";
-      }
-      // handle simple search typed in chat: "search YYZ YVR 2025-10-15"
+      // Search in-chat
       else if (lower.startsWith("search")) {
         const parts = text.split(/\s+/);
-        // naive parsing: expect "search FROM TO YYYY-MM-DD"
         if (parts.length >= 4) {
           const sFrom = parts[1].toUpperCase();
           const sTo = parts[2].toUpperCase();
@@ -145,14 +162,24 @@ export default function AirAssistEnhanced() {
           runSearch(sFrom, sTo, sDate);
           reply = `Searching flights from ${sFrom} to ${sTo} on ${sDate}...`;
         } else {
-          reply = "To search in chat: `search <FROM> <TO> <YYYY-MM-DD>`. Example: search YYZ YVR 2025-10-15";
+          reply = "To search in chat: `search <FROM> <TO> <YYYY-MM-DD>`.";
         }
       }
-      // ask about booking or unknown commands
+      // FAQ
+      else if (lower.includes("faq") || lower.includes("policy") || lower.includes("refund")) {
+        setShowFAQ(true);
+        reply = lang === "en" ? "Opened FAQ. Select a question." : "FAQ ouvert. Sélectionnez une question.";
+      }
+      // Agent
+      else if (lower.includes("agent") || lower.includes("human") || handoff) {
+        setHandoff(true);
+        reply = lang === "en" ? "Connecting to human agent. ETA 2-5 min." : "Connexion à un agent. Délai 2-5 min.";
+      }
+      // help fallback
       else {
         reply = lang === "en"
-          ? "Try: search <FROM> <TO> <DATE>, 'predict', 'status', 'book', 'faq' or use the search form on the right."
-          : "Essayez : search <FROM> <TO> <DATE>, 'predict', 'status', 'book', 'faq' ou utilisez le formulaire de recherche à droite.";
+          ? "Try: 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' or use the search form."
+          : "Essayez : 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' ou utilisez le formulaire de recherche.";
       }
 
       const b = { id: Date.now() + 1, from: "bot", text: reply, time: nowTime() };
@@ -164,7 +191,6 @@ export default function AirAssistEnhanced() {
   function runSearch(sFrom, sTo, sDate) {
     const fFrom = (sFrom || from || "").toLowerCase();
     const fTo = (sTo || to || "").toLowerCase();
-    // filter flights by from/to. Date matching optional: match by date if provided.
     const res = FLIGHTS.filter((f) => {
       const matchFrom = f.from.toLowerCase().includes(fFrom);
       const matchTo = f.to.toLowerCase().includes(fTo);
@@ -177,14 +203,12 @@ export default function AirAssistEnhanced() {
     });
     setResults(res);
     setSelected(res.length > 0 ? res[0] : null);
-    // push a bot message summarizing results
     const summary = res.length === 0 ? `No flights found from ${sFrom || from} to ${sTo || to}` : `Found ${res.length} flights from ${sFrom || from} to ${sTo || to}. Select a flight from the list.`;
     const botMsg = { id: Date.now() + 5, from: "bot", text: summary, time: nowTime() };
     setMessages((p) => [...p, botMsg]);
   }
 
   function onSearchClick() {
-    // validate minimal fields
     if (!from.trim() || !to.trim() || !date) {
       appendUser("Please provide From, To and Date in the search form.");
       return;
@@ -194,9 +218,8 @@ export default function AirAssistEnhanced() {
 
   function quick(action) {
     if (action === "predict") appendUser("predict");
-    if (action === "book") appendUser("book");
-    if (action === "status") appendUser("status");
-    if (action === "faq") appendUser("faq");
+    if (action === "suggest") appendUser("suggest rebook");
+    if (action === "request") appendUser("request rebook");
     if (action === "agent") {
       setHandoff(true);
       appendUser("connect agent");
@@ -211,7 +234,7 @@ export default function AirAssistEnhanced() {
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Mark />
-              <div className="text-xs text-gray-500">Search & Book • Demo</div>
+              <div className="text-xs text-gray-500">Search & Rebook • Demo</div>
             </div>
             <div className="flex items-center gap-3">
               <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-sm border rounded px-2 py-1">
@@ -230,7 +253,7 @@ export default function AirAssistEnhanced() {
                     <>
                       <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-xs text-red-700">A</div>
                       <div>
-                        <div className="bg-gray-50 px-3 py-2 rounded-xl max-w-xl text-sm text-gray-900">{m.text}</div>
+                        <div className="bg-gray-50 px-3 py-2 rounded-xl max-w-xl text-sm text-gray-900" style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
                         <div className="text-xs text-gray-400 mt-1">{m.time}</div>
                       </div>
                     </>
@@ -253,9 +276,9 @@ export default function AirAssistEnhanced() {
 
             <div className="border-t pt-3">
               <div className="flex gap-2 mb-3">
-                <button onClick={() => quick("status")} className="px-3 py-1 rounded-full bg-[#F01428] text-white text-sm font-medium">Status</button>
-                <button onClick={() => quick("predict")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Predict delay</button>
-                <button onClick={() => quick("book")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Book selected</button>
+                <button onClick={() => quick("predict")} className="px-3 py-1 rounded-full bg-[#F01428] text-white text-sm font-medium">Predict delay</button>
+                <button onClick={() => quick("suggest")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Suggest rebook</button>
+                <button onClick={() => quick("request")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Request rebook</button>
                 <button onClick={() => quick("agent")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Agent</button>
               </div>
 
@@ -324,9 +347,9 @@ export default function AirAssistEnhanced() {
                     <div className="text-xs text-gray-400 mt-1">Seats left: {selected.seats}</div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button onClick={() => appendUser(`status`)} className="py-2 rounded-md border border-gray-200 text-sm">Check status</button>
                       <button onClick={() => appendUser(`predict`)} className="py-2 rounded-md border border-gray-200 text-sm">Predict delay</button>
-                      <button onClick={() => appendUser(`book`)} className="col-span-2 mt-2 py-2 bg-[#F01428] text-white rounded-md text-sm">Book this flight</button>
+                      <button onClick={() => appendUser(`suggest rebook`)} className="py-2 rounded-md border border-gray-200 text-sm">Suggest rebook</button>
+                      <button onClick={() => appendUser(`request rebook`)} className="col-span-2 mt-2 py-2 bg-[#F01428] text-white rounded-md text-sm">Request rebook</button>
                     </div>
                   </div>
                 </>
@@ -344,7 +367,7 @@ export default function AirAssistEnhanced() {
           <div className="text-xs text-gray-500 text-center">{lang === "en" ? "Mock UI. Do not use trademarks." : "Interface factice. Ne pas utiliser les marques."}</div>
         </div>
 
-        {/* FAQ drawer */}
+                {/* FAQ drawer */}
         {showFAQ && (
           <div className="fixed right-6 top-20 w-96 bg-white rounded-xl shadow-lg p-4 z-40">
             <div className="flex items-center justify-between mb-2">
