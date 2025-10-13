@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 
 /*
-AirAssist — Search-based mock chatbot UI (rebook flows)
-Changes:
-- Removed "Check status" and "Book selected" actions.
-- Added "Suggest rebook" (shows options) and "Request rebook" (user requests rebooking).
-- Chat quick buttons updated accordingly.
+AirAssist — Search & Rebook (fixed-height panels)
 Save as: src/components/AirAssistEnhanced.js
-Requires Tailwind CSS.
+Requires Tailwind CSS. Uses Roboto/Noto Sans if loaded.
+This file is a mock UI. Do not use trademarks without permission.
 */
 
 const FLIGHTS = [
@@ -96,64 +93,51 @@ export default function AirAssistEnhanced() {
       const lower = text.toLowerCase();
       let reply = "";
 
-      // Suggest rebook options (shows alternatives)
       if (lower.includes("suggest") && (lower.includes("rebook") || lower.includes("re-book"))) {
         if (!selected) {
           reply = "Select a flight first to get rebook options or search for alternatives.";
         } else {
-          // create mock suggestions: same day later, next-day earlier, cheaper option
           const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
-          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.price < selected.price);
+          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && Number(f.price.replace(/\D/g,'')) < Number(selected.price.replace(/\D/g,'')));
           const suggestions = [
-            `Option 1: Same-day later flight ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
-            `Option 2: Cheaper option ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
+            `Option 1: Same-day alternative ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day option'}`,
+            `Option 2: Cheaper ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
             "Option 3: Rebook to next available flight (+CAD 40)."
           ];
           reply = `Rebook suggestions for ${selected.id}:\n- ${suggestions.join("\n- ")}`;
         }
-      }
-      // Request rebook (user requests agent to rebook or auto-request)
-      else if (lower.startsWith("request") && (lower.includes("rebook") || lower.includes("re-book"))) {
+      } else if (lower.startsWith("request") && (lower.includes("rebook") || lower.includes("re-book"))) {
         if (!selected) {
           reply = "No flight selected. Select the flight you want rebooked and then request rebook.";
         } else {
-          // mock request created
           const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
           reply = `Rebook request submitted for ${selected.id}. Request ref: ${reqRef}. An agent will review and contact you.`;
         }
-      }
-      // Handle short commands: 'suggest rebook' or 'request rebook'
-      else if (lower === "suggest rebook") {
-        // delegate to suggest flow
+      } else if (lower === "suggest rebook") {
         if (!selected) reply = "Select a flight first.";
         else {
           const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
           const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && Number(f.price.replace(/\D/g,'')) < Number(selected.price.replace(/\D/g,'')));
           const suggestions = [
-            `Option 1: Same-day later ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
+            `Option 1: Same-day ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day option'}`,
             `Option 2: Cheaper ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
             "Option 3: Rebook to next available (+CAD 40)."
           ];
           reply = `Rebook suggestions:\n- ${suggestions.join("\n- ")}`;
         }
-      }
-      else if (lower === "request rebook") {
+      } else if (lower === "request rebook") {
         if (!selected) reply = "Select a flight first.";
         else {
           const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
           reply = `Rebook request created. Ref: ${reqRef}. Agent will follow up.`;
         }
-      }
-      // Predict delay
-      else if (lower.includes("predict") || lower.includes("delay") || lower.includes("risk")) {
+      } else if (lower.includes("predict") || lower.includes("delay") || lower.includes("risk")) {
         if (!selected) reply = "No flight selected. Select a flight to run prediction.";
         else {
           const r = predictDelayRisk(selected);
           reply = `Prediction for ${selected.id}: ${r.label} risk (${Math.round(r.score * 100)}%). Reason: ${r.reason}`;
         }
-      }
-      // Search in-chat
-      else if (lower.startsWith("search")) {
+      } else if (lower.startsWith("search")) {
         const parts = text.split(/\s+/);
         if (parts.length >= 4) {
           const sFrom = parts[1].toUpperCase();
@@ -164,19 +148,13 @@ export default function AirAssistEnhanced() {
         } else {
           reply = "To search in chat: `search <FROM> <TO> <YYYY-MM-DD>`.";
         }
-      }
-      // FAQ
-      else if (lower.includes("faq") || lower.includes("policy") || lower.includes("refund")) {
+      } else if (lower.includes("faq") || lower.includes("policy") || lower.includes("refund")) {
         setShowFAQ(true);
         reply = lang === "en" ? "Opened FAQ. Select a question." : "FAQ ouvert. Sélectionnez une question.";
-      }
-      // Agent
-      else if (lower.includes("agent") || lower.includes("human") || handoff) {
+      } else if (lower.includes("agent") || lower.includes("human") || handoff) {
         setHandoff(true);
         reply = lang === "en" ? "Connecting to human agent. ETA 2-5 min." : "Connexion à un agent. Délai 2-5 min.";
-      }
-      // help fallback
-      else {
+      } else {
         reply = lang === "en"
           ? "Try: 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' or use the search form."
           : "Essayez : 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' ou utilisez le formulaire de recherche.";
@@ -227,10 +205,10 @@ export default function AirAssistEnhanced() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="h-[90vh] flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-5xl grid grid-cols-12 gap-4" style={{ fontFamily: "Roboto, Noto Sans, system-ui" }}>
-        {/* Chat */}
-        <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-md flex flex-col overflow-hidden">
+        {/* Chat (left) */}
+        <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-md h-full flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Mark />
@@ -245,8 +223,9 @@ export default function AirAssistEnhanced() {
             </div>
           </div>
 
-          <div className="flex-1 p-4 flex flex-col">
-            <div ref={listRef} className="flex-1 overflow-auto space-y-3 mb-4">
+          {/* Scrollable chat body */}
+          <div className="flex-1 p-4 flex flex-col overflow-y-auto">
+            <div ref={listRef} className="flex flex-col gap-3 mb-4">
               {messages.map((m) => (
                 <div key={m.id} className={m.from === "bot" ? "flex items-start gap-3" : "flex items-end justify-end"}>
                   {m.from === "bot" ? (
@@ -274,7 +253,8 @@ export default function AirAssistEnhanced() {
               )}
             </div>
 
-            <div className="border-t pt-3">
+            {/* Input fixed at bottom of left panel */}
+            <div className="mt-auto border-t pt-3">
               <div className="flex gap-2 mb-3">
                 <button onClick={() => quick("predict")} className="px-3 py-1 rounded-full bg-[#F01428] text-white text-sm font-medium">Predict delay</button>
                 <button onClick={() => quick("suggest")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Suggest rebook</button>
@@ -296,78 +276,80 @@ export default function AirAssistEnhanced() {
           </div>
         </div>
 
-        {/* Right: Search & Results */}
-        <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <div className="text-sm font-semibold mb-2">{lang === "en" ? "Search flights" : "Rechercher vols"}</div>
+        {/* Right: Search & Results (fixed height, scrollable content) */}
+        <div className="col-span-12 md:col-span-4 h-full flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto flex flex-col gap-4 p-0">
+            <div className="bg-white rounded-xl shadow-md p-4">
+              <div className="text-sm font-semibold mb-2">{lang === "en" ? "Search flights" : "Rechercher vols"}</div>
 
-            <input type="text" placeholder="From (IATA e.g. YYZ)" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
-            <input type="text" placeholder="To (IATA e.g. YVR)" value={to} onChange={(e) => setTo(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full mb-3 border rounded px-2 py-1 text-sm" />
+              <input type="text" placeholder="From (IATA e.g. YYZ)" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
+              <input type="text" placeholder="To (IATA e.g. YVR)" value={to} onChange={(e) => setTo(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full mb-3 border rounded px-2 py-1 text-sm" />
 
-            <div className="flex gap-2">
-              <button onClick={onSearchClick} className="flex-1 bg-[#F01428] text-white py-2 rounded-md text-sm">Search</button>
-              <button onClick={() => { setFrom(""); setTo(""); setDate(""); setResults([]); setSelected(null); }} className="px-3 py-2 border rounded-md text-sm">Clear</button>
-            </div>
-
-            {results.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {results.map((f) => (
-                  <div key={f.id} onClick={() => setSelected(f)} className={`p-3 rounded-lg border cursor-pointer ${selected?.id === f.id ? "border-[#F01428] bg-red-50" : "border-gray-100 hover:border-gray-200"}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">{f.route}</div>
-                      <div className="text-xs text-gray-500">{f.price}</div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{f.id} • Dep: {new Date(f.dep).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    <div className="text-xs text-gray-400">Seats left: {f.seats}</div>
-                  </div>
-                ))}
+              <div className="flex gap-2">
+                <button onClick={onSearchClick} className="flex-1 bg-[#F01428] text-white py-2 rounded-md text-sm">Search</button>
+                <button onClick={() => { setFrom(""); setTo(""); setDate(""); setResults([]); setSelected(null); }} className="px-3 py-2 border rounded-md text-sm">Clear</button>
               </div>
-            )}
 
-            {results.length === 0 && <div className="mt-3 text-xs text-gray-500">No results. Use the form above or search in chat.</div>}
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold">{lang === "en" ? "Selected flight" : "Vol sélectionné"}</div>
-              <div className="text-xs text-gray-500">{handoff ? (lang === "en" ? "Agent requested" : "Agent demandé") : (lang === "en" ? "No agent" : "Aucun agent")}</div>
-            </div>
-
-            <div className="flex-1">
-              {selected ? (
-                <>
-                  <div className="text-sm text-gray-700">{lang === "en" ? "Flight details" : "Détails du vol"}</div>
-                  <div className="mt-2 p-3 rounded-lg border border-gray-100">
-                    <div className="text-sm font-medium">{selected.route}</div>
-                    <div className="text-xs text-gray-500">{selected.id}</div>
-                    <div className="mt-2 text-sm">Departs: {new Date(selected.dep).toLocaleString()}</div>
-                    <div className="text-sm">Arrives: {new Date(selected.arr).toLocaleString()}</div>
-                    <div className="text-sm mt-1">Price: {selected.price}</div>
-                    <div className="text-xs text-gray-400 mt-1">Seats left: {selected.seats}</div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button onClick={() => appendUser(`predict`)} className="py-2 rounded-md border border-gray-200 text-sm">Predict delay</button>
-                      <button onClick={() => appendUser(`suggest rebook`)} className="py-2 rounded-md border border-gray-200 text-sm">Suggest rebook</button>
-                      <button onClick={() => appendUser(`request rebook`)} className="col-span-2 mt-2 py-2 bg-[#F01428] text-white rounded-md text-sm">Request rebook</button>
+              {results.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {results.map((f) => (
+                    <div key={f.id} onClick={() => setSelected(f)} className={`p-3 rounded-lg border cursor-pointer ${selected?.id === f.id ? "border-[#F01428] bg-red-50" : "border-gray-100 hover:border-gray-200"}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">{f.route}</div>
+                        <div className="text-xs text-gray-500">{f.price}</div>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{f.id} • Dep: {new Date(f.dep).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                      <div className="text-xs text-gray-400">Seats left: {f.seats}</div>
                     </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs text-gray-500">No flight selected. Search and pick a flight.</div>
+                  ))}
+                </div>
               )}
 
-              <div className="mt-4 flex items-center gap-2">
-                <input id="handoff" type="checkbox" checked={handoff} onChange={(e) => setHandoff(e.target.checked)} className="w-4 h-4" />
-                <label htmlFor="handoff" className="text-sm">{lang === "en" ? "Request human agent" : "Demander agent humain"}</label>
+              {results.length === 0 && <div className="mt-3 text-xs text-gray-500">No results. Use the form above or search in chat.</div>}
+            </div>
+
+            <div className="bg-white rounded-xl shadow-md p-4 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-semibold">{lang === "en" ? "Selected flight" : "Vol sélectionné"}</div>
+                <div className="text-xs text-gray-500">{handoff ? (lang === "en" ? "Agent requested" : "Agent demandé") : (lang === "en" ? "No agent" : "Aucun agent")}</div>
+              </div>
+
+              <div className="flex-1">
+                {selected ? (
+                  <>
+                    <div className="text-sm text-gray-700">{lang === "en" ? "Flight details" : "Détails du vol"}</div>
+                    <div className="mt-2 p-3 rounded-lg border border-gray-100">
+                      <div className="text-sm font-medium">{selected.route}</div>
+                      <div className="text-xs text-gray-500">{selected.id}</div>
+                      <div className="mt-2 text-sm">Departs: {new Date(selected.dep).toLocaleString()}</div>
+                      <div className="text-sm">Arrives: {new Date(selected.arr).toLocaleString()}</div>
+                      <div className="text-sm mt-1">Price: {selected.price}</div>
+                      <div className="text-xs text-gray-400 mt-1">Seats left: {selected.seats}</div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <button onClick={() => appendUser(`predict`)} className="py-2 rounded-md border border-gray-200 text-sm">Predict delay</button>
+                        <button onClick={() => appendUser(`suggest rebook`)} className="py-2 rounded-md border border-gray-200 text-sm">Suggest rebook</button>
+                        <button onClick={() => appendUser(`request rebook`)} className="col-span-2 mt-2 py-2 bg-[#F01428] text-white rounded-md text-sm">Request rebook</button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-gray-500">No flight selected. Search and pick a flight.</div>
+                )}
+
+                <div className="mt-4 flex items-center gap-2">
+                  <input id="handoff" type="checkbox" checked={handoff} onChange={(e) => setHandoff(e.target.checked)} className="w-4 h-4" />
+                  <label htmlFor="handoff" className="text-sm">{lang === "en" ? "Request human agent" : "Demander agent humain"}</label>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="text-xs text-gray-500 text-center">{lang === "en" ? "Mock UI. Do not use trademarks." : "Interface factice. Ne pas utiliser les marques."}</div>
+            <div className="text-xs text-gray-500 text-center">Mock UI. Do not use trademarks.</div>
+          </div>
         </div>
 
-            {/* FAQ drawer */}
+               {/* FAQ drawer */}
         {showFAQ && (
           <div className="fixed right-6 top-20 w-96 bg-white rounded-xl shadow-lg p-4 z-40">
             <div className="flex items-center justify-between mb-2">
