@@ -1,28 +1,52 @@
 import React, { useState, useEffect, useRef } from "react";
 
 /*
-AirAssist — Multi-page mock flow
-Pages:
-1) Flight Search page with chat launcher.
-2) After selecting a flight user can "Book" (redirect to Air Canada booking URL placeholder).
-3) My Trip page for booked flights (check delay, suggest rebook, cancel).
-4) Cancelled flight page with refund & re-accommodation info and rebook options.
-
-How to use:
+AirAssist — Multi-day mock flow with expanded dummy flights
+- Now includes 5 flight options for each day: 2025-10-16, 2025-10-17, 2025-10-18.
 - Save as src/App.js or src/pages/AirAssistApp.js
 - Tailwind CSS required.
-- All data is mocked. Redirects use placeholder Air Canada booking URL.
-- No external APIs.
+- All data mocked. Redirects use placeholder Air Canada booking URL.
 */
 
 const FLIGHTS = [
-  { id: "AC101", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-15T07:00:00Z", arr: "2025-10-15T09:30:00Z", price: "CAD 399", seats: 12 },
-  { id: "AC202", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T10:00:00Z", arr: "2025-10-16T12:15:00Z", price: "CAD 199", seats: 8 },
-  { id: "AC303", from: "YYZ", to: "YUL", route: "YYZ → YUL", dep: "2025-10-17T14:00:00Z", arr: "2025-10-17T15:15:00Z", price: "CAD 179", seats: 6 },
+  // 2025-10-16 (5 options)
+  { id: "AC1601", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T06:00:00Z", arr: "2025-10-16T08:30:00Z", price: "CAD 359", seats: 12 },
+  { id: "AC1602", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T09:00:00Z", arr: "2025-10-16T11:30:00Z", price: "CAD 379", seats: 9 },
+  { id: "AC1603", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T12:00:00Z", arr: "2025-10-16T14:30:00Z", price: "CAD 399", seats: 7 },
+  { id: "AC1604", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T15:30:00Z", arr: "2025-10-16T18:00:00Z", price: "CAD 429", seats: 5 },
+  { id: "AC1605", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T20:45:00Z", arr: "2025-10-17T00:15:00Z", price: "CAD 459", seats: 4 },
+
+  // 2025-10-17 (5 options)
+  { id: "AC1701", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-17T05:30:00Z", arr: "2025-10-17T08:00:00Z", price: "CAD 349", seats: 10 },
+  { id: "AC1702", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-17T08:45:00Z", arr: "2025-10-17T11:15:00Z", price: "CAD 369", seats: 8 },
+  { id: "AC1703", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-17T11:50:00Z", arr: "2025-10-17T14:20:00Z", price: "CAD 389", seats: 6 },
+  { id: "AC1704", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-17T14:30:00Z", arr: "2025-10-17T17:00:00Z", price: "CAD 419", seats: 5 },
+  { id: "AC1705", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-17T19:15:00Z", arr: "2025-10-17T21:45:00Z", price: "CAD 449", seats: 3 },
+
+  // 2025-10-18 (5 options)
+  { id: "AC1801", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-18T06:15:00Z", arr: "2025-10-18T08:45:00Z", price: "CAD 339", seats: 14 },
+  { id: "AC1802", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-18T09:30:00Z", arr: "2025-10-18T12:00:00Z", price: "CAD 359", seats: 11 },
+  { id: "AC1803", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-18T12:45:00Z", arr: "2025-10-18T15:15:00Z", price: "CAD 389", seats: 8 },
+  { id: "AC1804", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-18T16:00:00Z", arr: "2025-10-18T18:30:00Z", price: "CAD 419", seats: 6 },
+  { id: "AC1805", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-18T21:00:00Z", arr: "2025-10-19T00:30:00Z", price: "CAD 479", seats: 2 },
+
+  // some other routes for variety
+  { id: "AC2001", from: "YYZ", to: "YUL", route: "YYZ → YUL", dep: "2025-10-16T07:00:00Z", arr: "2025-10-16T08:20:00Z", price: "CAD 159", seats: 20 },
+  { id: "AC2002", from: "YYZ", to: "YUL", route: "YYZ → YUL", dep: "2025-10-17T10:00:00Z", arr: "2025-10-17T11:20:00Z", price: "CAD 179", seats: 12 },
 ];
 
+const FAQ = {
+  en: [
+    { q: "What is the refund policy?", a: "Refunds depend on fare class. Submit booking ref to check eligibility." },
+    { q: "How early can I check-in?", a: "Check-in opens 24 hours before scheduled departure." },
+  ],
+  fr: [
+    { q: "Quelle est la politique de remboursement?", a: "Les remboursements dépendent de la classe tarifaire. Envoyez la réservation pour vérifier." },
+    { q: "Quand puis-je m'enregistrer?", a: "L'enregistrement ouvre 24 heures avant le départ prévu." },
+  ],
+};
+
 function predictDelayRisk(flight, date) {
-  // simple deterministic mock using flight id + date
   const base = flight.to === "YVR" ? 0.35 : 0.15;
   const d = new Date(date || flight.dep);
   const dayPenalty = d.getDate() % 2 === 0 ? 0.1 : 0.0;
@@ -51,7 +75,6 @@ export default function AirAssistApp() {
   const [booked, setBooked] = useState([]); // list of booked flights
   const [showChat, setShowChat] = useState(false);
 
-  // simple search (mock)
   function runSearch() {
     const fFrom = (from || "").trim().toUpperCase();
     const fTo = (to || "").trim().toUpperCase();
@@ -67,12 +90,9 @@ export default function AirAssistApp() {
   }
 
   function handleBookRedirect(flight) {
-    // mock redirect to Air Canada booking page
     const url = `https://www.aircanada.com/booking?flight=${flight.id}&from=${flight.from}&to=${flight.to}&date=${(date||flight.dep).slice(0,10)}`;
-    // simulate booking by adding to booked and then redirect (for demo we add then window.open)
     setBooked((b) => [...b, { ...flight, bookingRef: `BK-${Math.floor(100000 + Math.random()*900000)}` }]);
     window.open(url, "_blank");
-    // navigate to My Trip where user will see booked flights
     setPage("mytrip");
   }
 
@@ -131,7 +151,6 @@ export default function AirAssistApp() {
               </div>
             </div>
 
-            {/* Chat launcher panel */}
             <div className="col-span-12 md:col-span-3">
               <div className="bg-white rounded-xl shadow p-4 flex flex-col items-center gap-3">
                 <div className="text-sm font-semibold">AirAssist Chat</div>
@@ -143,6 +162,7 @@ export default function AirAssistApp() {
                   <ul className="list-disc ml-4 mt-2">
                     <li>Search flights then open chat to ask for suggestions.</li>
                     <li>Click Book to go to Air Canada booking page.</li>
+                    <li>Try dates 2025-10-16, 2025-10-17, 2025-10-18 for multiple options.</li>
                   </ul>
                 </div>
               </div>
@@ -166,7 +186,7 @@ export default function AirAssistApp() {
                       </div>
                       <div className="flex gap-2">
                         <button onClick={()=>setShowChat(true)} className="px-3 py-1 border rounded">Open Chat</button>
-                        <button onClick={()=>{ /* simulate cancel */ cancelBooking(b.bookingRef); }} className="px-3 py-1 bg-gray-200 rounded">Cancel</button>
+                        <button onClick={()=>{ cancelBooking(b.bookingRef); }} className="px-3 py-1 bg-gray-200 rounded">Cancel</button>
                       </div>
                     </div>
                   ))}
@@ -219,8 +239,7 @@ export default function AirAssistApp() {
             onClose={() => setShowChat(false)}
             selectedFlight={selected}
             onSuggestDay={(flight, altDate) => {
-              // suggestion: append message (in UI we show an alert)
-              alert(`Suggestion for ${flight?.id || 'selected flight'}: avoid ${altDate}. Mock reason: high disruption risk.`);
+              alert(`Suggestion for ${flight?.id || 'selected flight'}: avoid ${altDate || 'this date'}. Mock reason: high disruption risk.`);
             }}
             onRequestRebook={(flight) => {
               if (!flight) return alert("Select a flight first.");
@@ -239,7 +258,6 @@ export default function AirAssistApp() {
   );
 }
 
-/* ChatModal component: lightweight, focused actions */
 function ChatModal({ onClose, selectedFlight, onSuggestDay, onRequestRebook, onPredict }) {
   const [input, setInput] = useState("");
   const [dateInput, setDateInput] = useState("");
