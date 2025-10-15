@@ -1,392 +1,328 @@
 import React, { useState, useEffect, useRef } from "react";
-import logoo from "./assets/ac_logo_white.png";
 
 /*
-AirAssist — Search-based mock chatbot UI (rebook flows)
-Changes:
-- Removed "Check status" and "Book selected" actions.
-- Added "Suggest rebook" (shows options) and "Request rebook" (user requests rebooking).
-- Chat quick buttons updated accordingly.
-Save as: src/components/AirAssistEnhanced.js
-Requires Tailwind CSS.
+AirAssist — Multi-page mock flow
+Pages:
+1) Flight Search page with chat launcher.
+2) After selecting a flight user can "Book" (redirect to Air Canada booking URL placeholder).
+3) My Trip page for booked flights (check delay, suggest rebook, cancel).
+4) Cancelled flight page with refund & re-accommodation info and rebook options.
+
+How to use:
+- Save as src/App.js or src/pages/AirAssistApp.js
+- Tailwind CSS required.
+- All data is mocked. Redirects use placeholder Air Canada booking URL.
+- No external APIs.
 */
 
 const FLIGHTS = [
   { id: "AC101", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-15T07:00:00Z", arr: "2025-10-15T09:30:00Z", price: "CAD 399", seats: 12 },
-  { id: "AC202", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-15T10:00:00Z", arr: "2025-10-15T11:15:00Z", price: "CAD 199", seats: 8 },
-  { id: "AC303", from: "YUL", to: "YYZ", route: "YUL → YYZ", dep: "2025-10-15T14:00:00Z", arr: "2025-10-15T15:15:00Z", price: "CAD 179", seats: 6 },
-  { id: "AC404", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T12:00:00Z", arr: "2025-10-16T14:30:00Z", price: "CAD 429", seats: 5 },
+  { id: "AC202", from: "YYZ", to: "YVR", route: "YYZ → YVR", dep: "2025-10-16T10:00:00Z", arr: "2025-10-16T12:15:00Z", price: "CAD 199", seats: 8 },
+  { id: "AC303", from: "YYZ", to: "YUL", route: "YYZ → YUL", dep: "2025-10-17T14:00:00Z", arr: "2025-10-17T15:15:00Z", price: "CAD 179", seats: 6 },
 ];
 
-const FAQ = {
-  en: [
-    { q: "What is the refund policy?", a: "Refunds depend on fare class. Submit booking ref to check eligibility." },
-    { q: "How early can I check-in?", a: "Check-in opens 24 hours before scheduled departure." },
-  ],
-  fr: [
-    { q: "Quelle est la politique de remboursement?", a: "Les remboursements dépendent de la classe tarifaire. Envoyez la réservation pour vérifier." },
-    { q: "Quand puis-je m'enregistrer?", a: "L'enregistrement ouvre 24 heures avant le départ prévu." },
-  ],
-};
-
-function predictDelayRisk(flight) {
-  const hour = new Date(flight.dep).getUTCHours();
-  const routeRisk = flight.to === "YVR" ? 0.3 : 0.1;
-  const nightPenalty = hour >= 0 && hour <= 6 ? 0.2 : 0;
-  const base = 0.05 + routeRisk + nightPenalty;
-  const score = Math.min(0.95, Math.round((base + Math.random() * 0.15) * 100) / 100);
+function predictDelayRisk(flight, date) {
+  // simple deterministic mock using flight id + date
+  const base = flight.to === "YVR" ? 0.35 : 0.15;
+  const d = new Date(date || flight.dep);
+  const dayPenalty = d.getDate() % 2 === 0 ? 0.1 : 0.0;
+  const score = Math.min(0.95, Math.round((base + dayPenalty + Math.random() * 0.15) * 100) / 100);
   const label = score > 0.6 ? "High" : score > 0.3 ? "Medium" : "Low";
-  const reason = `Weather-window + historical delays on ${flight.route}. Night departures add risk.`;
+  const reason = `Mock factors: weather history for ${flight.route} and time-of-day.`;
   return { score, label, reason };
 }
 
-function Mark() {
+function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <div
-        className="w-10 h-10 rounded-full bg-center bg-no-repeat flex items-center justify-center"
-        style={{
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='12' fill='%23F01428'/%3E%3Cpath d='M7 12a5 5 0 0 1 10 0 5 5 0 0 1-10 0z' fill='%23fff'/%3E%3C/svg%3E\")",
-        }}
-      />
-      <div className="text-sm font-medium" style={{ fontFamily: "Roboto, Noto Sans, system-ui" }}>
-        AirAssist
-      </div>
+      <div className="w-9 h-9 rounded-full bg-[#F01428] flex items-center justify-center text-white font-bold">A</div>
+      <div className="font-medium">AirAssist</div>
     </div>
   );
 }
 
-export default function AirAssistEnhanced() {
-  const [lang, setLang] = useState("en");
-  const [messages, setMessages] = useState([
-    { id: 1, from: "bot", text: "Welcome to AirAssist. Search flights or ask for rebook suggestions.", time: "10:00" },
-  ]);
-  const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-
+export default function AirAssistApp() {
+  const [page, setPage] = useState("search"); // search | mytrip | cancelled
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [date, setDate] = useState("");
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [booked, setBooked] = useState([]); // list of booked flights
+  const [showChat, setShowChat] = useState(false);
 
-  const [handoff, setHandoff] = useState(false);
-  const [showFAQ, setShowFAQ] = useState(false);
-  const listRef = useRef(null);
-
-  useEffect(() => {
-    if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-  }, [messages]);
-
-  function nowTime() {
-    return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-
-  function appendUser(text) {
-    if (!text || !text.trim()) return;
-    const u = { id: Date.now(), from: "user", text: text.trim(), time: nowTime() };
-    setMessages((p) => [...p, u]);
-    setInput("");
-    botReply(text.trim());
-  }
-
-  function botReply(text) {
-    setIsTyping(true);
-    setTimeout(() => {
-      const lower = text.toLowerCase();
-      let reply = "";
-
-      // Suggest rebook options (shows alternatives)
-      if (lower.includes("suggest") && (lower.includes("rebook") || lower.includes("re-book"))) {
-        if (!selected) {
-          reply = "Select a flight first to get rebook options or search for alternatives.";
-        } else {
-          // create mock suggestions: same day later, next-day earlier, cheaper option
-          const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
-          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.price < selected.price);
-          const suggestions = [
-            `Option 1: Same-day later flight ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
-            `Option 2: Cheaper option ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
-            "Option 3: Rebook to next available flight (+CAD 40)."
-          ];
-          reply = `Rebook suggestions for ${selected.id}:\n- ${suggestions.join("\n- ")}`;
-        }
-      }
-      // Request rebook (user requests agent to rebook or auto-request)
-      else if (lower.startsWith("request") && (lower.includes("rebook") || lower.includes("re-book"))) {
-        if (!selected) {
-          reply = "No flight selected. Select the flight you want rebooked and then request rebook.";
-        } else {
-          // mock request created
-          const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
-          reply = `Rebook request submitted for ${selected.id}. Request ref: ${reqRef}. An agent will review and contact you.`;
-        }
-      }
-      // Handle short commands: 'suggest rebook' or 'request rebook'
-      else if (lower === "suggest rebook") {
-        // delegate to suggest flow
-        if (!selected) reply = "Select a flight first.";
-        else {
-          const alt1 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && f.id !== selected.id);
-          const alt2 = FLIGHTS.find((f) => f.from === selected.from && f.to === selected.to && Number(f.price.replace(/\D/g,'')) < Number(selected.price.replace(/\D/g,'')));
-          const suggestions = [
-            `Option 1: Same-day later ${alt1 ? `${alt1.id} at ${new Date(alt1.dep).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} - ${alt1.price}` : 'No same-day later option'}`,
-            `Option 2: Cheaper ${alt2 ? `${alt2.id} - ${alt2.price}` : 'No cheaper option'}`,
-            "Option 3: Rebook to next available (+CAD 40)."
-          ];
-          reply = `Rebook suggestions:\n- ${suggestions.join("\n- ")}`;
-        }
-      }
-      else if (lower === "request rebook") {
-        if (!selected) reply = "Select a flight first.";
-        else {
-          const reqRef = `RB-${Math.floor(1000 + Math.random() * 9000)}`;
-          reply = `Rebook request created. Ref: ${reqRef}. Agent will follow up.`;
-        }
-      }
-      // Predict delay
-      else if (lower.includes("predict") || lower.includes("delay") || lower.includes("risk")) {
-        if (!selected) reply = "No flight selected. Select a flight to run prediction.";
-        else {
-          const r = predictDelayRisk(selected);
-          reply = `Prediction for ${selected.id}: ${r.label} risk (${Math.round(r.score * 100)}%). Reason: ${r.reason}`;
-        }
-      }
-      // Search in-chat
-      else if (lower.startsWith("search")) {
-        const parts = text.split(/\s+/);
-        if (parts.length >= 4) {
-          const sFrom = parts[1].toUpperCase();
-          const sTo = parts[2].toUpperCase();
-          const sDate = parts[3];
-          runSearch(sFrom, sTo, sDate);
-          reply = `Searching flights from ${sFrom} to ${sTo} on ${sDate}...`;
-        } else {
-          reply = "To search in chat: `search <FROM> <TO> <YYYY-MM-DD>`.";
-        }
-      }
-      // FAQ
-      else if (lower.includes("faq") || lower.includes("policy") || lower.includes("refund")) {
-        setShowFAQ(true);
-        reply = lang === "en" ? "Opened FAQ. Select a question." : "FAQ ouvert. Sélectionnez une question.";
-      }
-      // Agent
-      else if (lower.includes("agent") || lower.includes("human") || handoff) {
-        setHandoff(true);
-        reply = lang === "en" ? "Connecting to human agent. ETA 2-5 min." : "Connexion à un agent. Délai 2-5 min.";
-      }
-      // help fallback
-      else {
-        reply = lang === "en"
-          ? "Try: 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' or use the search form."
-          : "Essayez : 'search <FROM> <TO> <DATE>', 'suggest rebook', 'request rebook', 'predict' ou utilisez le formulaire de recherche.";
-      }
-
-      const b = { id: Date.now() + 1, from: "bot", text: reply, time: nowTime() };
-      setMessages((p) => [...p, b]);
-      setIsTyping(false);
-    }, 600 + Math.random() * 600);
-  }
-
-  function runSearch(sFrom, sTo, sDate) {
-    const fFrom = (sFrom || from || "").toLowerCase();
-    const fTo = (sTo || to || "").toLowerCase();
+  // simple search (mock)
+  function runSearch() {
+    const fFrom = (from || "").trim().toUpperCase();
+    const fTo = (to || "").trim().toUpperCase();
+    const target = date ? new Date(date).toISOString().slice(0, 10) : null;
     const res = FLIGHTS.filter((f) => {
-      const matchFrom = f.from.toLowerCase().includes(fFrom);
-      const matchTo = f.to.toLowerCase().includes(fTo);
-      let matchDate = true;
-      if (sDate || date) {
-        const target = (sDate || date).split("T")[0] || (sDate || date);
-        matchDate = new Date(f.dep).toISOString().slice(0, 10) === target;
-      }
+      const matchFrom = !fFrom || f.from === fFrom;
+      const matchTo = !fTo || f.to === fTo;
+      const matchDate = !target || new Date(f.dep).toISOString().slice(0, 10) === target;
       return matchFrom && matchTo && matchDate;
     });
     setResults(res);
-    setSelected(res.length > 0 ? res[0] : null);
-    const summary = res.length === 0 ? `No flights found from ${sFrom || from} to ${sTo || to}` : `Found ${res.length} flights from ${sFrom || from} to ${sTo || to}. Select a flight from the list.`;
-    const botMsg = { id: Date.now() + 5, from: "bot", text: summary, time: nowTime() };
-    setMessages((p) => [...p, botMsg]);
+    setSelected(res[0] || null);
   }
 
-  function onSearchClick() {
-    if (!from.trim() || !to.trim() || !date) {
-      appendUser("Please provide From, To and Date in the search form.");
-      return;
-    }
-    runSearch(from.trim().toUpperCase(), to.trim().toUpperCase(), date);
+  function handleBookRedirect(flight) {
+    // mock redirect to Air Canada booking page
+    const url = `https://www.aircanada.com/booking?flight=${flight.id}&from=${flight.from}&to=${flight.to}&date=${(date||flight.dep).slice(0,10)}`;
+    // simulate booking by adding to booked and then redirect (for demo we add then window.open)
+    setBooked((b) => [...b, { ...flight, bookingRef: `BK-${Math.floor(100000 + Math.random()*900000)}` }]);
+    window.open(url, "_blank");
+    // navigate to My Trip where user will see booked flights
+    setPage("mytrip");
   }
 
-  function quick(action) {
-    if (action === "predict") appendUser("predict");
-    if (action === "suggest") appendUser("suggest rebook");
-    if (action === "request") appendUser("request rebook");
-    if (action === "agent") {
-      setHandoff(true);
-      appendUser("connect agent");
-    }
+  function cancelBooking(bookingRef) {
+    setBooked((b) => b.filter((x) => x.bookingRef !== bookingRef));
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-5xl grid grid-cols-12 gap-4" style={{ fontFamily: "Roboto, Noto Sans, system-ui" }}>
-        {/* Chat */}
-        <div className="col-span-12 md:col-span-8 bg-white rounded-xl shadow-md flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img style={{width:'30%'}} src={logoo}/>
-              <p className="text-xs text-gray-500">Passenger Disruption Management</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <select value={lang} onChange={(e) => setLang(e.target.value)} className="text-sm border rounded px-2 py-1">
-                <option value="en">EN</option>
-                <option value="fr">FR</option>
-              </select>
-              <button onClick={() => setShowFAQ((s) => !s)} className="text-sm px-3 py-1 border rounded">FAQ</button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-50 p-6" style={{ fontFamily: "Inter, system-ui" }}>
+      <div className="max-w-6xl mx-auto">
+        <header className="flex items-center justify-between mb-6">
+          <Logo />
+          <nav className="flex gap-3">
+            <button onClick={() => setPage("search")} className={`px-3 py-1 rounded ${page==='search'?'bg-[#F01428] text-white':'bg-white border'}`}>Search</button>
+            <button onClick={() => setPage("mytrip")} className={`px-3 py-1 rounded ${page==='mytrip'?'bg-[#F01428] text-white':'bg-white border'}`}>My Trip</button>
+            <button onClick={() => setPage("cancelled")} className={`px-3 py-1 rounded ${page==='cancelled'?'bg-[#F01428] text-white':'bg-white border'}`}>Cancelled Flow</button>
+          </nav>
+        </header>
 
-          <div className="flex-1 p-4 flex flex-col">
-            <div ref={listRef} className="flex-1 overflow-auto space-y-3 mb-4">
-              {messages.map((m) => (
-                <div key={m.id} className={m.from === "bot" ? "flex items-start gap-3" : "flex items-end justify-end"}>
-                  {m.from === "bot" ? (
-                    <>
-                      <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-xs text-red-700">A</div>
-                      <div>
-                        <div className="bg-gray-50 px-3 py-2 rounded-xl max-w-xl text-sm text-gray-900" style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
-                        <div className="text-xs text-gray-400 mt-1">{m.time}</div>
-                      </div>
-                    </>
+        {page === "search" && (
+          <section className="grid grid-cols-12 gap-6">
+            <div className="col-span-12 md:col-span-9">
+              <div className="bg-white rounded-xl shadow p-6">
+                <h2 className="text-lg font-semibold mb-4">Search flights</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                  <input className="border p-2 rounded" placeholder="From (IATA e.g. YYZ)" value={from} onChange={(e)=>setFrom(e.target.value)} />
+                  <input className="border p-2 rounded" placeholder="To (IATA e.g. YVR)" value={to} onChange={(e)=>setTo(e.target.value)} />
+                  <input type="date" className="border p-2 rounded" value={date} onChange={(e)=>setDate(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={runSearch} className="bg-[#F01428] text-white px-4 py-2 rounded">Search</button>
+                    <button onClick={()=>{ setFrom(''); setTo(''); setDate(''); setResults([]); setSelected(null); }} className="px-4 py-2 border rounded">Clear</button>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  {results.length === 0 ? (
+                    <div className="text-sm text-gray-500">No results. Try a different query or use chat for recommendations.</div>
                   ) : (
-                    <>
-                      <div className="text-xs text-gray-400 mr-2">{m.time}</div>
-                      <div className="bg-[#F01428] px-3 py-2 rounded-xl max-w-xl text-sm text-white">{m.text}</div>
-                    </>
+                    <div className="space-y-3">
+                      {results.map(f => (
+                        <div key={f.id} className={`p-3 border rounded flex items-center justify-between ${selected?.id===f.id?'bg-red-50 border-[#F01428]':''}`}>
+                          <div>
+                            <div className="font-medium">{f.route} • {f.id}</div>
+                            <div className="text-xs text-gray-500">Dep: {new Date(f.dep).toLocaleString()} • Seats: {f.seats}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-700 mr-4">{f.price}</div>
+                            <button onClick={()=>setSelected(f)} className="px-3 py-1 border rounded">Select</button>
+                            <button onClick={()=>handleBookRedirect(f)} className="px-3 py-1 bg-[#F01428] text-white rounded">Book</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              ))}
+              </div>
+            </div>
 
-              {isTyping && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center text-xs text-red-700">A</div>
-                  <div className="ml-2 text-sm text-gray-600 italic">{lang === "en" ? "AirAssist is typing..." : "AirAssist écrit..."}</div>
+            {/* Chat launcher panel */}
+            <div className="col-span-12 md:col-span-3">
+              <div className="bg-white rounded-xl shadow p-4 flex flex-col items-center gap-3">
+                <div className="text-sm font-semibold">AirAssist Chat</div>
+                <p className="text-xs text-gray-500 text-center">Open chat to get delay predictions, day-suggestions and rebook options.</p>
+                <button onClick={()=>setShowChat(true)} className="mt-2 px-4 py-2 bg-[#F01428] text-white rounded">Open Chat</button>
+
+                <div className="mt-4 w-full text-xs text-gray-600">
+                  <div className="font-medium">Quick tips</div>
+                  <ul className="list-disc ml-4 mt-2">
+                    <li>Search flights then open chat to ask for suggestions.</li>
+                    <li>Click Book to go to Air Canada booking page.</li>
+                  </ul>
                 </div>
-              )}
-            </div>
-
-            <div className="border-t pt-3">
-              <div className="flex gap-2 mb-3">
-                <button onClick={() => quick("predict")} className="px-3 py-1 rounded-full bg-[#F01428] text-white text-sm font-medium">Predict delay</button>
-                <button onClick={() => quick("suggest")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Suggest rebook</button>
-                <button onClick={() => quick("request")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Request rebook</button>
-                <button onClick={() => quick("agent")} className="px-3 py-1 rounded-full bg-gray-200 text-sm">Agent</button>
-              </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); appendUser(input); }} className="flex gap-2">
-                <input
-                  aria-label="chat-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={lang === "en" ? "Type message (e.g. search YYZ YVR 2025-10-15)" : "Tapez message (ex: search YYZ YVR 2025-10-15)"}
-                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-red-200"
-                />
-                <button type="submit" className="px-4 py-2 bg-[#F01428] text-white rounded-lg">{lang === "en" ? "Send" : "Envoyer"}</button>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        {/* Right: Search & Results */}
-        <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
-          <div className="bg-white rounded-xl shadow-md p-4">
-            <div className="text-sm font-semibold mb-2">{lang === "en" ? "Search flights" : "Rechercher vols"}</div>
-
-            <input type="text" placeholder="From (IATA e.g. YYZ)" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
-            <input type="text" placeholder="To (IATA e.g. YVR)" value={to} onChange={(e) => setTo(e.target.value)} className="w-full mb-2 border rounded px-2 py-1 text-sm" />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full mb-3 border rounded px-2 py-1 text-sm" />
-
-            <div className="flex gap-2">
-              <button onClick={onSearchClick} className="flex-1 bg-[#F01428] text-white py-2 rounded-md text-sm">Search</button>
-              <button onClick={() => { setFrom(""); setTo(""); setDate(""); setResults([]); setSelected(null); }} className="px-3 py-2 border rounded-md text-sm">Clear</button>
-            </div>
-
-            {results.length > 0 && (
-              <div className="mt-4 space-y-3">
-                {results.map((f) => (
-                  <div key={f.id} onClick={() => setSelected(f)} className={`p-3 rounded-lg border cursor-pointer ${selected?.id === f.id ? "border-[#F01428] bg-red-50" : "border-gray-100 hover:border-gray-200"}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium">{f.route}</div>
-                      <div className="text-xs text-gray-500">{f.price}</div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{f.id} • Dep: {new Date(f.dep).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    <div className="text-xs text-gray-400">Seats left: {f.seats}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {results.length === 0 && <div className="mt-3 text-xs text-gray-500">No results. Use the form above or search in chat.</div>}
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-4 flex-1 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold">{lang === "en" ? "Selected flight" : "Vol sélectionné"}</div>
-              <div className="text-xs text-gray-500">{handoff ? (lang === "en" ? "Agent requested" : "Agent demandé") : (lang === "en" ? "No agent" : "Aucun agent")}</div>
-            </div>
-
-            <div className="flex-1">
-              {selected ? (
-                <>
-                  <div className="text-sm text-gray-700">{lang === "en" ? "Flight details" : "Détails du vol"}</div>
-                  <div className="mt-2 p-3 rounded-lg border border-gray-100">
-                    <div className="text-sm font-medium">{selected.route}</div>
-                    <div className="text-xs text-gray-500">{selected.id}</div>
-                    <div className="mt-2 text-sm">Departs: {new Date(selected.dep).toLocaleString()}</div>
-                    <div className="text-sm">Arrives: {new Date(selected.arr).toLocaleString()}</div>
-                    <div className="text-sm mt-1">Price: {selected.price}</div>
-                    <div className="text-xs text-gray-400 mt-1">Seats left: {selected.seats}</div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button onClick={() => appendUser(`predict`)} className="py-2 rounded-md border border-gray-200 text-sm">Predict delay</button>
-                      <button onClick={() => appendUser(`suggest rebook`)} className="py-2 rounded-md border border-gray-200 text-sm">Suggest rebook</button>
-                      <button onClick={() => appendUser(`request rebook`)} className="col-span-2 mt-2 py-2 bg-[#F01428] text-white rounded-md text-sm">Request rebook</button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-xs text-gray-500">No flight selected. Search and pick a flight.</div>
-              )}
-
-              <div className="mt-4 flex items-center gap-2">
-                <input id="handoff" type="checkbox" checked={handoff} onChange={(e) => setHandoff(e.target.checked)} className="w-4 h-4" />
-                <label htmlFor="handoff" className="text-sm">{lang === "en" ? "Request human agent" : "Demander agent humain"}</label>
               </div>
             </div>
-          </div>
-
-        </div>
-
-                {/* FAQ drawer */}
-        {showFAQ && (
-          <div className="fixed right-6 top-20 w-96 bg-white rounded-xl shadow-lg p-4 z-40">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-sm">{lang === "en" ? "Frequently Asked Questions" : "Questions fréquentes"}</div>
-              <button onClick={() => setShowFAQ(false)} className="text-xs text-gray-500">Close</button>
-            </div>
-            <div className="space-y-3 max-h-72 overflow-auto">
-              {FAQ[lang].map((f, i) => (
-                <div key={i} className="border-b pb-2">
-                  <div className="text-sm font-medium">{f.q}</div>
-                  <div className="text-xs text-gray-600 mt-1">{f.a}</div>
-                  <div className="mt-2">
-                    <button onClick={() => appendUser(`${f.q}`)} className="text-xs text-blue-600">Ask bot about this</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </section>
         )}
+
+        {page === "mytrip" && (
+          <section>
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">My Trip</h2>
+              {booked.length === 0 ? (
+                <div className="text-sm text-gray-500">You have no booked flights. Book from Search.</div>
+              ) : (
+                <div className="space-y-3">
+                  {booked.map(b => (
+                    <div key={b.bookingRef} className="p-3 border rounded flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">{b.route} • {b.id}</div>
+                        <div className="text-xs text-gray-500">Booking: {b.bookingRef} • Dep: {new Date(b.dep).toLocaleString()}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={()=>setShowChat(true)} className="px-3 py-1 border rounded">Open Chat</button>
+                        <button onClick={()=>{ /* simulate cancel */ cancelBooking(b.bookingRef); }} className="px-3 py-1 bg-gray-200 rounded">Cancel</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {page === "cancelled" && (
+          <section>
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-lg font-semibold mb-4">Cancelled Flight — Disruption Flow</h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 border rounded">
+                  <h3 className="font-medium mb-2">Refund policy (summary)</h3>
+                  <ul className="text-sm text-gray-700 list-disc ml-5">
+                    <li>Refunds depend on fare class and disruption reason.</li>
+                    <li>Processing time: 3-7 business days for standard cases.</li>
+                    <li>Contact support for expedited review.</li>
+                  </ul>
+                </div>
+
+                <div className="p-4 border rounded">
+                  <h3 className="font-medium mb-2">Re-accommodation & Rebooking</h3>
+                  <div className="text-sm text-gray-700">
+                    <p>Options:</p>
+                    <ol className="list-decimal ml-5">
+                      <li>Automatic re-accommodation on next available flight.</li>
+                      <li>Manual rebook through agent with alternative dates.</li>
+                      <li>Full refund and redirect to booking portal to select new flight.</li>
+                    </ol>
+
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={()=>setShowChat(true)} className="px-3 py-2 bg-[#F01428] text-white rounded">Chat for rebook</button>
+                      <button onClick={()=>window.open("https://www.aircanada.com", "_blank")} className="px-3 py-2 border rounded">Go to booking portal</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </section>
+        )}
+
+        {/* Chat modal */}
+        {showChat && (
+          <ChatModal
+            onClose={() => setShowChat(false)}
+            selectedFlight={selected}
+            onSuggestDay={(flight, altDate) => {
+              // suggestion: append message (in UI we show an alert)
+              alert(`Suggestion for ${flight?.id || 'selected flight'}: avoid ${altDate}. Mock reason: high disruption risk.`);
+            }}
+            onRequestRebook={(flight) => {
+              if (!flight) return alert("Select a flight first.");
+              const reqRef = `RB-${Math.floor(1000 + Math.random()*9000)}`;
+              alert(`Rebook request created for ${flight.id}. Ref ${reqRef}. Agent will contact you.`);
+            }}
+            onPredict={(flight, d) => {
+              if (!flight) return alert("Select a flight first.");
+              const r = predictDelayRisk(flight, d);
+              alert(`Prediction for ${flight.id} on ${d || flight.dep}: ${r.label} risk (${Math.round(r.score*100)}%).\n${r.reason}`);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ChatModal component: lightweight, focused actions */
+function ChatModal({ onClose, selectedFlight, onSuggestDay, onRequestRebook, onPredict }) {
+  const [input, setInput] = useState("");
+  const [dateInput, setDateInput] = useState("");
+  const listRef = useRef(null);
+
+  useEffect(()=>{ if(listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose}></div>
+      <div className="relative w-full md:w-3/5 lg:w-2/5 bg-white rounded-t-xl md:rounded-xl shadow-lg overflow-hidden">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#F01428] flex items-center justify-center text-white font-bold">A</div>
+            <div>
+              <div className="font-medium">AirAssist Chat</div>
+              <div className="text-xs text-gray-500">{selectedFlight ? `${selectedFlight.route} • ${selectedFlight.id}` : "No flight selected"}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="px-3 py-1 border rounded">Close</button>
+          </div>
+        </div>
+
+        <div className="p-4 h-[60vh] md:h-[60vh] flex flex-col">
+          <div ref={listRef} className="flex-1 overflow-y-auto space-y-3">
+            <div className="text-sm text-gray-700">
+              Welcome. Use buttons below or type commands: <span className="font-mono">predict</span>, <span className="font-mono">suggest rebook</span>, <span className="font-mono">request rebook</span>, or <span className="font-mono">search</span>.
+            </div>
+
+            <div className="p-3 border rounded">
+              <div className="font-medium mb-2">Actions for selected flight</div>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <input type="date" value={dateInput} onChange={(e)=>setDateInput(e.target.value)} className="flex-1 border rounded px-2 py-1" />
+                  <button onClick={()=>onPredict(selectedFlight, dateInput)} className="px-3 py-1 bg-[#F01428] text-white rounded">Predict delay</button>
+                </div>
+
+                <div className="flex gap-2">
+                  <button onClick={()=>onSuggestDay(selectedFlight, dateInput || null)} className="flex-1 px-3 py-2 border rounded">Suggest alternative day</button>
+                  <button onClick={()=>onRequestRebook(selectedFlight)} className="px-3 py-2 bg-[#F01428] text-white rounded">Request rebook</button>
+                </div>
+
+                <div className="flex gap-2">
+                  <input value={input} onChange={(e)=>setInput(e.target.value)} placeholder="Type a chat command" className="flex-1 border rounded px-2 py-1" />
+                  <button onClick={()=>{
+                    const cmd = (input||"").toLowerCase();
+                    if(cmd.startsWith("search")) {
+                      alert("Use the Search page for search flow.");
+                    } else if(cmd.includes("predict")) {
+                      onPredict(selectedFlight, dateInput || null);
+                    } else if(cmd.includes("suggest")) {
+                      onSuggestDay(selectedFlight, dateInput || null);
+                    } else if(cmd.includes("request")) {
+                      onRequestRebook(selectedFlight);
+                    } else {
+                      alert("Unknown command. Try predict / suggest / request.");
+                    }
+                    setInput("");
+                  }} className="px-3 py-1 bg-gray-200 rounded">Run</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 border rounded text-sm text-gray-600">
+              Notes:
+              <ul className="list-disc ml-5 mt-2">
+                <li>"Predict delay" returns a mock risk for the chosen date.</li>
+                <li>"Suggest alternative day" advises if the selected date looks risky.</li>
+                <li>"Request rebook" simulates raising a request and returns a reference.</li>
+                <li>"Book" action on Search redirects user to Air Canada booking page (opens in new tab).</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-4 border-t pt-3">
+            <div className="flex gap-2">
+              <button onClick={()=>onPredict(selectedFlight, dateInput || null)} className="px-3 py-2 bg-[#F01428] text-white rounded flex-1">Predict delay</button>
+              <button onClick={()=>onSuggestDay(selectedFlight, dateInput || null)} className="px-3 py-2 border rounded">Suggest day</button>
+              <button onClick={()=>onRequestRebook(selectedFlight)} className="px-3 py-2 border rounded">Request rebook</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
