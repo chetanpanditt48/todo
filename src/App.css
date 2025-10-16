@@ -1,38 +1,29 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+< div class = "flex flex-wrap flex-col md:flex-row md:flex-grow px-3 xl:px-0 py-4 md:py-8 vg-Bh flex-shrink md:max-w-6xl" > < div class = "flex flex-wrap justify-center w-full pb-4 md:justify-center" > < ul class = "flex flex-row flex-wrap justify-center md:justify-center" > < li > < a target = ""
+href = "/en-ca/sitemap/flights-to-countriesregions/page-1"
+class = "vg-Ad tracking-normal vg-p vg-F vg-G vg-Bb vg-I vg-J vg-Bc hover:underline vg-K vg-Bd focus:underline vg-M vg-Be" > Flights to Countries / Regions </a> </li > <i class = "pointer-events-none flex items-center mx-2 vg-o vg-S vg-Bi vg-Bb vg-material-icon" > | </i><li><a target="" href="/en - ca / sitemap / flights - to - cities / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be ">Flights to Cities</a></li><i class="
+pointer - events - none flex items - center mx - 2 vg - o vg - S vg - Bi vg - Bb vg - material - icon ">|</i><li><a target="
+" href=" / en - ca / sitemap / countryregion - to - countryregion - flights / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be ">Country/Region to Country/Region Flights</a></li><i class="
+pointer - events - none flex items - center mx - 2 vg - o vg - S vg - Bi vg - Bb vg - material - icon ">|</i><li><a target="
+" href=" / en - ca / sitemap / city - to - city - flights / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be ">City to City Flights</a></li><i class="
+pointer - events - none flex items - center mx - 2 vg - o vg - S vg - Bi vg - Bb vg - material - icon ">|</i><li><a target="
+" href=" / en - ca / sitemap / flights - from - cities / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be ">Flights from Cities</a></li><i class="
+pointer - events - none flex items - center mx - 2 vg - o vg - S vg - Bi vg - Bb vg - material - icon ">|</i><li><a target="
+" href=" / en - ca / sitemap / flights - from - countriesregions / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be ">Flights from Countries/Regions</a></li><i class="
+pointer - events - none flex items - center mx - 2 vg - o vg - S vg - Bi vg - Bb vg - material - icon ">|</i><li><a target="
+" href=" / en - ca / sitemap / city - to - countryregion - flights / page - 1 " class="
+vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I vg - J vg - Bc hover: underline vg - K vg - Bd focus: underline vg - M vg - Be "> City to Country/Region Flights</a></li></ul></div><div class="
+flex flex - wrap flex - row w - full "><div class="
+flex flex - wrap w - full md: w - full "><div class="
+flex flex - wrap justify - center w - full md: justify - center vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I "><div class="
+flex flex - wrap flex - col justify - end "><div class="
+flex ">©&nbsp;2025&nbsp;Air Canada</div></div></div></div><div class="
+flex flex - wrap w - full pt - 8 md: py - 0 md: w - full "><div class="
+flex flex - wrap w - full justify - center md: justify - center vg - Ad tracking - normal vg - p vg - F vg - G vg - Bb vg - I "><div class="
+flex flex - wrap w - full justify - center pb - 4 md: pb - 0 md: w - auto md: items - end md: ltr: pr - 3 md: rtl: pl - 3 "><a target="
+_blank " href="
+https: //www.aircanada.com/ca/en/aco/flights" class=""><img src="https://www.aircanada.com/en-ca/media-em/ac/logos/ac_logo_white5.png?quality=80&amp;fit=crop&amp;format=auto&amp;opt=true" alt="Air Canada" loading="eager" class="image max-h-28" style="max-width: 150px;"/></a></div></div></div></div></div>
