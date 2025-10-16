@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 
 /*
@@ -46,8 +47,7 @@ function predictDelayRisk(flight, dateStr) {
 function Logo() {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-9 h-9 rounded-full bg-[#F01428] flex items-center justify-center text-white font-bold">A</div>
-      <div className="font-medium">AirAssist</div>
+      <img src="https://media.jtdwjcwq6f4wp4ce.com/ac/logos/ac-large-default.svg" alt="Air Canada" loading="eager" class="image max-w-none focus:outline-none HF" width="300"></img>
     </div>
   );
 }
@@ -173,7 +173,7 @@ export default function App() {
                             <div className="flex items-center gap-3">
                               <div className="text-sm text-gray-700">{f.price}</div>
                               <button onClick={()=>setSelected(f)} className="px-3 py-1 border rounded">Select</button>
-                              <button onClick={()=>handleBook(f)} className="px-3 py-1 bg-[#F01428] text-white rounded">Book (redirect)</button>
+                              <button onClick={()=>handleBook(f)} className="px-3 py-1 bg-[#F01428] text-white rounded">Book</button>
                             </div>
                           </div>
                         ))}
@@ -195,14 +195,13 @@ export default function App() {
                 <div className="text-sm text-gray-600">
                   - Predict delay per listed flight. <br/>
                   - Suggest best flight for selected day in chat. <br/>
-                  - Booking redirects to Air Canada portal.
                 </div>
               </div>
             </div>
           </div>
         )}
 
-      {/* MY TRIPS */}
+       {/* MY TRIPS */}
 {phase === "mytrips" && (
   <div>
     <div className="bg-white rounded-xl shadow p-6">
@@ -236,14 +235,14 @@ export default function App() {
                 {/* Chat icon instead of Open Chat button */}
                 <ChatLauncher onOpen={() => openChatForBooking(b)} />
 
-                {b.status !== "Cancelled" && (
+                {/* {b.status !== "Cancelled" && (
                   <button
                     onClick={() => cancelBooking(b.bookingRef)}
                     className="px-3 py-1 border rounded text-sm hover:bg-gray-100"
                   >
                     Cancel
                   </button>
-                )}
+                )} */}
               </div>
             </div>
           ))}
@@ -252,8 +251,6 @@ export default function App() {
     </div>
   </div>
 )}
-   
-
         {/* Chat modal */}
         {chatContext && (
           <ChatModal
@@ -418,7 +415,7 @@ function ChatModal({ context, onClose, onBook, onCancelBooking, onRedirectToAC, 
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#F01428] flex items-center justify-center text-white font-bold">A</div>
             <div>
-              <div className="font-medium">AirAssist Chat</div>
+              <div className="font-medium">AirCanada Chat</div>
               <div className="text-xs text-gray-500">{mode === "search" ? "Before booking" : mode === "mytrip" ? "My Trip" : "Cancelled flow"}</div>
             </div>
           </div>
@@ -470,7 +467,7 @@ function ChatModal({ context, onClose, onBook, onCancelBooking, onRedirectToAC, 
                 <>
                   <button onClick={() => pushUser("predict " + (selected?.id || ""))} className="px-3 py-1 bg-[#F01428] text-white rounded text-sm">Predict</button>
                   <button onClick={() => pushUser("suggest day")} className="px-3 py-1 border rounded text-sm">Suggest day</button>
-                  <button onClick={() => { if (selected) pushUser("book " + selected.id); else pushUser("book"); }} className="px-3 py-1 border rounded text-sm">Book (redirect)</button>
+                  <button onClick={() => { if (selected) pushUser("book " + selected.id); else pushUser("book"); }} className="px-3 py-1 border rounded text-sm">Book</button>
                 </>
               )}
               {mode === "mytrip" && (
@@ -484,7 +481,7 @@ function ChatModal({ context, onClose, onBook, onCancelBooking, onRedirectToAC, 
               {mode === "cancelled" && (
                 <>
                   <button onClick={() => pushUser("refund policy")} className="px-3 py-1 border rounded text-sm">Refund policy</button>
-                  <button onClick={() => pushUser("rebook")} className="px-3 py-1 bg-[#F01428] text-white rounded text-sm">Rebook (redirect)</button>
+                  <button onClick={() => pushUser("rebook")} className="px-3 py-1 bg-[#F01428] text-white rounded text-sm">Rebook</button>
                 </>
               )}
             </div>
@@ -496,6 +493,7 @@ function ChatModal({ context, onClose, onBook, onCancelBooking, onRedirectToAC, 
           </div>
         </div>
       </div>
+      
     </div>
   );
 }
