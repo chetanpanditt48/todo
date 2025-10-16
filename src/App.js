@@ -202,38 +202,57 @@ export default function App() {
           </div>
         )}
 
-        {/* MY TRIPS */}
-        {phase === "mytrips" && (
-          <div>
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-lg font-semibold mb-4">My Trips</h2>
+      {/* MY TRIPS */}
+{phase === "mytrips" && (
+  <div>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="text-lg font-semibold mb-4">My Trips</h2>
 
-              {bookings.length === 0 ? (
-                <div className="text-sm text-gray-500">No booked flights. Book from the Search page.</div>
-              ) : (
-                <div className="space-y-3">
-                  {bookings.map(b => (
-                    <div key={b.bookingRef} className="p-3 border rounded flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{b.from} → {b.to} • {b.id}</div>
-                        <div className="text-xs text-gray-500">Booking: {b.bookingRef} • Dep: {new Date(b.dep).toLocaleString()}</div>
-                        <div className={`mt-1 text-sm ${b.status==="Cancelled" ? "text-red-600" : "text-gray-700"}`}>
-                          Status: <span className="font-semibold">{b.status}</span>
-                          {b.status === "Cancelled" && b.cancelReason ? ` • ${b.cancelReason}` : null}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openChatForBooking(b)} className="px-3 py-1 bg-[#F01428] text-white rounded">Open Chat</button>
-                        {b.status !== "Cancelled" && <button onClick={() => cancelBooking(b.bookingRef)} className="px-3 py-1 border rounded">Cancel</button>}
-                      </div>
-                    </div>
-                  ))}
+      {bookings.length === 0 ? (
+        <div className="text-sm text-gray-500">No booked flights. Book from the Search page.</div>
+      ) : (
+        <div className="space-y-3">
+          {bookings.map(b => (
+            <div
+              key={b.bookingRef}
+              className="p-3 border rounded flex items-center justify-between hover:bg-red-50 transition"
+            >
+              <div>
+                <div className="font-medium">{b.from} → {b.to} • {b.id}</div>
+                <div className="text-xs text-gray-500">
+                  Booking: {b.bookingRef} • Dep: {new Date(b.dep).toLocaleString()}
                 </div>
-              )}
+                <div
+                  className={`mt-1 text-sm ${
+                    b.status === "Cancelled" ? "text-red-600" : "text-gray-700"
+                  }`}
+                >
+                  Status: <span className="font-semibold">{b.status}</span>
+                  {b.status === "Cancelled" && b.cancelReason ? ` • ${b.cancelReason}` : null}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Chat icon instead of Open Chat button */}
+                <ChatLauncher onOpen={() => openChatForBooking(b)} />
+
+                {b.status !== "Cancelled" && (
+                  <button
+                    onClick={() => cancelBooking(b.bookingRef)}
+                    className="px-3 py-1 border rounded text-sm hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+)}
+   
 
         {/* Chat modal */}
         {chatContext && (
